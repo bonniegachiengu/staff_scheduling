@@ -1,0 +1,12 @@
+{% extends 'scheduler/base.html' %}
+
+{% block title %}Generate Shifts{% endblock %}
+
+{% block content %}
+<h2>Generate Shifts</h2>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">Generate Shifts</button>
+</form>
+{% endblock %}

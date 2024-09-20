@@ -1,0 +1,33 @@
+{% extends 'scheduler/base.html' %}
+
+{% block title %}View Schedule{% endblock %}
+
+{% block content %}
+<h2>Current Schedule</h2>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Employee</th>
+            <th>Shift</th>
+            <th>Date</th>
+            <th>Start Time</th>
+            <th>End Time</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for schedule in schedules %}
+        <tr>
+            <td>{{ schedule.employee.name }}</td>
+            <td>{{ schedule.shift.get_role_display }}</td>
+            <td>{{ schedule.shift.date }}</td>
+            <td>{{ schedule.shift.start_time|time }}</td>
+            <td>{{ schedule.shift.end_time|time }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5">No schedules available.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

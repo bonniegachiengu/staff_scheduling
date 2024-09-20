@@ -1,0 +1,30 @@
+{% extends 'scheduler/base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h2>Dashboard</h2>
+
+<div class="row">
+    <div class="col-md-6">
+        <h3>Latest Scheduling Result</h3>
+        {% if latest_result %}
+        <p>Total Satisfaction: {{ latest_result.total_satisfaction }}</p>
+        <p>Unassigned Shifts: {{ latest_result.unassigned_shifts }}</p>
+        <p>Created at: {{ latest_result.created_at }}</p>
+        {% else %}
+        <p>No scheduling results available.</p>
+        {% endif %}
+    </div>
+    <div class="col-md-6">
+        <h3>Your Upcoming Shifts</h3>
+        <ul>
+        {% for schedule in upcoming_shifts %}
+            <li>{{ schedule.shift.date }} - {{ schedule.shift.start_time|time }} to {{ schedule.shift.end_time|time }}</li>
+        {% empty %}
+            <li>No upcoming shifts.</li>
+        {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}
