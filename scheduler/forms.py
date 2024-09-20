@@ -1,6 +1,6 @@
 from django import forms
 from django.utils import timezone
-from .models import Employee, Shift, EmployeeRole, Role, ShiftBlock
+from .models import Employee, Shift, EmployeeRole, Role, ShiftTime
 
 class AvailabilityForm(forms.Form):
     DAYS = [
@@ -13,21 +13,15 @@ class AvailabilityForm(forms.Form):
         ('sunday', 'Sunday'),
     ]
 
-    TIME_CHOICES = ShiftBlock.TIME_CHOICES
-
     for day, day_name in DAYS:
-        for time_value, time_name in TIME_CHOICES:
-            field_name = f'{day}_{time_value}'
-            locals()[field_name] = forms.BooleanField(label=f'{day_name} {time_name}', required=False)
+        for shift_time, shift_name in ShiftTime.choices:
+            field_name = f'{day}_{shift_time}'
+            locals()[field_name] = forms.BooleanField(label=f'{day_name} {shift_name}', required=False)
 
 class EmployeeForm(forms.ModelForm):
     class Meta:
         model = Employee
-        fields = ['name', 'max_hours_per_week', 'availability', 'preferred_shifts']
-        widgets = {
-            'availability': forms.CheckboxSelectMultiple,
-            'preferred_shifts': forms.CheckboxSelectMultiple,
-        }
+        fields = ['name', 'max_hours_per_week']
 
 class EmployeeRoleForm(forms.ModelForm):
     class Meta:
@@ -39,24 +33,30 @@ EmployeeRoleFormSet = forms.inlineformset_factory(
 )
 
 class EmployeePreferencesForm(forms.ModelForm):
+    preferred_shifts = forms.ModelMultipleChoiceField(
+        queryset=Shift.objects.all(),
+        widget=forms.CheckboxSelectMultiple,
+        required=False
+    )
+
     class Meta:
         model = Employee
-        fields = ['max_hours_per_week', 'availability', 'preferred_shifts']
-        widgets = {
-            'availability': forms.CheckboxSelectMultiple,
-            'preferred_shifts': forms.CheckboxSelectMultiple,
-        }
+        fields = ['max_hours_per_week', 'preferred_shifts']
 
-class ShiftForm(forms.ModelForm):
-    class Meta:
-        model = Shift
-        fields = ['role', 'date', 'shift_block']
-        widgets = {
-            'role': forms.Select(choices=Role.choices),
-            'date': forms.DateInput(attrs={'type': 'date'}),
-            'shift_block': forms.Select(),
-        }
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['preferred_shifts'].queryset = Shift.objects.filter(date__gte=timezone.now().date())
 
 class ShiftGenerationForm(forms.Form):
     start_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
     end_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+
+class ShiftForm(forms.ModelForm):
+    class Meta:
+        model = Shift
+        fields = ['role', 'date', 'shift_time']
+        widgets = {
+            'role': forms.Select(choices=Role.choices),
+            'date': forms.DateInput(attrs={'type': 'date'}),
+            'shift_time': forms.Select(choices=ShiftTime.choices),
+        }

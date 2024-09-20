@@ -3,8 +3,8 @@ from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils import timezone
 from .scheduling import create_schedule
-from .models import Employee, Shift, Schedule, SchedulingResult, EmployeeRole, Role, ShiftBlock
-from .forms import EmployeePreferencesForm, AvailabilityForm, ShiftGenerationForm
+from .models import Employee, Shift, Schedule, SchedulingResult, EmployeeRole, Role, ShiftTime
+from .forms import EmployeePreferencesForm, ShiftGenerationForm
 from datetime import timedelta
 
 def is_manager(user):
@@ -12,15 +12,8 @@ def is_manager(user):
 
 @login_required
 def dashboard(request):
-    latest_result = SchedulingResult.objects.order_by('-created_at').first()
-    upcoming_shifts = Schedule.objects.filter(
-        employee=request.user.employee,
-        shift__date__gte=timezone.now().date()
-    ).order_by('shift__date', 'shift__start_time')[:5]
-    return render(request, 'scheduler/dashboard.html', {
-        'latest_result': latest_result,
-        'upcoming_shifts': upcoming_shifts
-    })
+    # Add your dashboard logic here
+    return render(request, 'scheduler/dashboard.html')
 
 @login_required
 def employee_preferences(request):
@@ -28,34 +21,14 @@ def employee_preferences(request):
     
     if request.method == 'POST':
         preferences_form = EmployeePreferencesForm(request.POST, instance=employee)
-        availability_form = AvailabilityForm(request.POST)
-        
-        if preferences_form.is_valid() and availability_form.is_valid():
+        if preferences_form.is_valid():
             preferences_form.save()
-            
-            # Process availability
-            availability = []
-            for field, value in availability_form.cleaned_data.items():
-                if value:
-                    day, time = field.split('_')
-                    shift_block, _ = ShiftBlock.objects.get_or_create(day=day, time=time)
-                    availability.append(shift_block)
-            
-            employee.availability.set(availability)
-            employee.save()
-            
             return redirect('dashboard')
     else:
         preferences_form = EmployeePreferencesForm(instance=employee)
-        initial_availability = {
-            f'{shift_block.day}_{shift_block.time}': True
-            for shift_block in employee.availability.all()
-        }
-        availability_form = AvailabilityForm(initial=initial_availability)
     
     return render(request, 'scheduler/employee_preferences.html', {
         'preferences_form': preferences_form,
-        'availability_form': availability_form
     })
 
 @user_passes_test(lambda u: u.is_staff)
@@ -76,11 +49,11 @@ def generate_shifts_for_period(start_date, end_date):
     current_date = start_date
     while current_date <= end_date:
         for role in Role.choices:
-            for shift_block in ShiftBlock.choices:
-                Shift.objects.create(
+            for shift_time in ShiftTime.choices:
+                Shift.objects.get_or_create(
                     role=role[0],
                     date=current_date,
-                    shift_block=shift_block[0]
+                    shift_time=shift_time[0]
                 )
         current_date += timedelta(days=1)
 
@@ -96,7 +69,7 @@ def generate_schedule(request):
 @login_required
 @user_passes_test(is_manager)
 def view_schedule(request):
-    schedules = Schedule.objects.all().order_by('shift__date', 'shift__start_time')
+    schedules = Schedule.objects.all().order_by('shift__date', 'shift__shift_time')
     return render(request, 'scheduler/schedule.html', {'schedules': schedules})
 
 @login_required

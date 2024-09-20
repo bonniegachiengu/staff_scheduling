@@ -2,13 +2,11 @@ from scipy.optimize import linear_sum_assignment
 import numpy as np
 from django.db.models import Sum, F
 from datetime import timedelta
-from .models import Employee, Shift, Schedule, SchedulingResult, EmployeeRole, EmployeeType, Role
+from .models import Employee, Shift, Schedule, SchedulingResult, EmployeeRole, EmployeeType, Role, ShiftTime
 
 def is_peak_hour(shift):
-    # Define peak hours (e.g., 11 AM to 2 PM and 5 PM to 8 PM)
-    peak_hours = [(11, 14), (17, 20)]
-    shift_hour = shift.start_time.hour
-    return any(start <= shift_hour < end for start, end in peak_hours)
+    peak_hours = [ShiftTime.MORNING, ShiftTime.AFTERNOON, ShiftTime.EVENING]
+    return shift.shift_time in peak_hours
 
 def get_required_staff(shift):
     is_peak = is_peak_hour(shift)
@@ -85,12 +83,8 @@ def create_schedule():
     # Check constraints
     for shift in shifts:
         required_staff = get_required_staff(shift)
-        assigned_staff = 0
+        assigned_staff = sum(1 for s in schedules if s.shift == shift)
         
-        for schedule in schedules:
-            if schedule.shift == shift:
-                assigned_staff += 1
-
         # Adjust assignments if constraints are not met
         while assigned_staff < required_staff:
             # Find an available employee with the required role

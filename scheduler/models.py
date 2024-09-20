@@ -32,37 +32,20 @@ class Role(models.TextChoices):
         else:
             raise ValueError(f"Unknown role: {role}")
 
-class ShiftBlock(models.Model):
-    DAY_CHOICES = [
-        ('monday', 'Monday'),
-        ('tuesday', 'Tuesday'),
-        ('wednesday', 'Wednesday'),
-        ('thursday', 'Thursday'),
-        ('friday', 'Friday'),
-        ('saturday', 'Saturday'),
-        ('sunday', 'Sunday'),
-    ]
-    TIME_CHOICES = [
-        ('MORNING', '9AM to 6PM'),
-        ('AFTERNOON', '12PM to 9PM'),
-        ('EVENING', '3PM to 12AM'),
-        ('NIGHT', '6PM to 3AM'),
-        ('LATE_NIGHT', '9PM to 6AM'),
-        ('EARLY_MORNING', '12AM to 9AM'),
-    ]
-    
-    day = models.CharField(max_length=10, choices=DAY_CHOICES)
-    time = models.CharField(max_length=20, choices=TIME_CHOICES)
-
-    def __str__(self):
-        return f"{self.get_day_display()} - {self.get_time_display()}"
+class ShiftTime(models.TextChoices):
+    MORNING = 'MORNING', '9AM to 6PM'
+    AFTERNOON = 'AFTERNOON', '12PM to 9PM'
+    EVENING = 'EVENING', '3PM to 12AM'
+    NIGHT = 'NIGHT', '6PM to 3AM'
+    LATE_NIGHT = 'LATE_NIGHT', '9PM to 6AM'
+    EARLY_MORNING = 'EARLY_MORNING', '12AM to 9AM'
 
 class Employee(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=100)
     max_hours_per_week = models.IntegerField(default=48, validators=[MinValueValidator(0), MaxValueValidator(168)])
-    availability = models.ManyToManyField(ShiftBlock, related_name='available_employees')
-    preferred_shifts = models.ManyToManyField(ShiftBlock, related_name='preferring_employees')
+    availability = models.JSONField(default=dict)
+    preferred_shifts = models.JSONField(default=dict)
     satisfaction_score = models.FloatField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
 
     def __str__(self):
@@ -90,10 +73,10 @@ class EmployeeRole(models.Model):
 class Shift(models.Model):
     role = models.CharField(max_length=50, choices=Role.choices)
     date = models.DateField()
-    shift_block = models.ForeignKey(ShiftBlock, on_delete=models.CASCADE)
+    shift_time = models.CharField(max_length=20, choices=ShiftTime.choices, default=ShiftTime.MORNING)
 
     def __str__(self):
-        return f"{self.get_role_display()} - {self.date} ({self.shift_block})"
+        return f"{self.get_role_display()} - {self.date} ({self.get_shift_time_display()})"
 
     @property
     def start_time(self):
@@ -105,14 +88,14 @@ class Shift(models.Model):
 
     def get_shift_times(self):
         shift_times = {
-            'MORNING': (timezone.time(9, 0), timezone.time(18, 0)),
-            'AFTERNOON': (timezone.time(12, 0), timezone.time(21, 0)),
-            'EVENING': (timezone.time(15, 0), timezone.time(0, 0)),
-            'NIGHT': (timezone.time(18, 0), timezone.time(3, 0)),
-            'LATE_NIGHT': (timezone.time(21, 0), timezone.time(6, 0)),
-            'EARLY_MORNING': (timezone.time(0, 0), timezone.time(9, 0)),
+            ShiftTime.MORNING: (timezone.time(9, 0), timezone.time(18, 0)),
+            ShiftTime.AFTERNOON: (timezone.time(12, 0), timezone.time(21, 0)),
+            ShiftTime.EVENING: (timezone.time(15, 0), timezone.time(0, 0)),
+            ShiftTime.NIGHT: (timezone.time(18, 0), timezone.time(3, 0)),
+            ShiftTime.LATE_NIGHT: (timezone.time(21, 0), timezone.time(6, 0)),
+            ShiftTime.EARLY_MORNING: (timezone.time(0, 0), timezone.time(9, 0)),
         }
-        return shift_times[self.shift_block.time]
+        return shift_times[self.shift_time]
 
 class Schedule(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
